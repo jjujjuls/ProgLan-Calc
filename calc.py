@@ -2,6 +2,7 @@
 EOF = 'EOF'
 INTEGER = 'INTEGER'
 PLUS = 'PLUS'
+MINUS = 'MINUS'
 
 class Token:
     def __init__(self, type, value):
@@ -24,31 +25,37 @@ class Interpreter:
         self.pos = 0
         # current token instance
         self.current_token = None
+        self.current_char = self.text[self.pos]
 
     def error(self):
         raise Exception('Error parsing input')
 
     def get_next_token(self):
-        """Lexical analyzer (tokenizer)"""
-        if self.pos > len(self.text) - 1:
-            return Token(EOF, None)
+        """Lexical analyzer (scanner or tokenizer)
         
-        current_char = self.text[self.pos]
+        This method is responsible for breaking a sentence
+        apart into tokens.
+        """
+        while self.current_char is not None:
+            
+            if self.current_char.isspace():
+                self.skip_whitespace()
+                continue
+            
+            if self.current_char.isdigit():
+                return Token(INTEGER, self.integer())
+                
+            if self.current_char == '+':
+                self.advance()
+                return Token(PLUS, '+')
+                
+            if self.current_char == '-':
+                self.advance()
+                return Token(MINUS, '-')
         
-        # Handle multi-digit integers
-        if current_char.isdigit():
-            num_str = ''
-            while self.pos < len(self.text) and self.text[self.pos].isdigit():
-                num_str += self.text[self.pos]
-                self.pos += 1
-            return Token(INTEGER, int(num_str))
-        
-        if current_char == '+':
-            token = Token(PLUS, current_char)
-            self.pos += 1
-            return token
-        
-        self.error()
+            self.error()
+            
+        return Token(EOF, None)
 
     def eat(self, token_type):
         """Compare the current token type with the passed token type and if they match, eat the current token"""
@@ -57,26 +64,65 @@ class Interpreter:
         else:
             self.error()
 
+    
+    
+    def skip_whitespace(self):
+        while self.current_char is not None and self.current_char.isspace():
+            self.advance()
+            
+    def integer(self):
+        """Return a (multidigit) integer consumed from the input."""
+        result = ''
+        while self.current_char is not None and self.current_char.isdigit():
+            result += self.current_char
+            self.advance()
+        return int(result)
+            
+    def advance(self):
+        """Advance the 'pos' pointer and set the 'current_char' variable."""
+        self.pos += 1
+        if self.pos > len(self.text) - 1:
+            self.current_char = None
+        else:
+            self.current_char = self.text[self.pos]
+            
     def expr(self):
-        """expr -> INTEGER PLUS INTEGER"""
+        """Parser / Interpreter
+        expr -> INTEGER PLUS INTEGER
+        expr -> INTEGER MINUNS INTEGER 
+        """
+        # set current token to the first token taken from the input
         self.current_token = self.get_next_token()
         
-        # We expect the current token to be an integer
+        # we expect the current token to be an integer
         left = self.current_token
         self.eat(INTEGER)
         
-        # We expect the current token to be a PLUS
+        # we expect the current token to be either a '+' or '-'
         op = self.current_token
-        self.eat(PLUS)
-        
-        # We expect the current token to be an integer
+        if op.type == PLUS:
+            self.eat(PLUS)
+        else:
+            self.eat(MINUS)
+            
+        # we expect the current token to be an integer
         right = self.current_token
         self.eat(INTEGER)
+        # after the above call the self.current_token is set to 
+        #EOF token 
         
-        # The result of adding the two integers
-        result = left.value + right.value
+        #at this point either the INTEGER  PLUS INTEGER  or
+        #the INTEGER MINUS INTEGER sequence of tokens
+        #has been successfully found and the method can just 
+        #return the result of adding or subtracting two integers,
+        #thus effectively interpreting client input
+        if op.type == PLUS:
+            result = left.value + right.value
+        else:
+            result = left.value - right.value
         return result
-
+        
+        
 def main():
     while True:
         try:
