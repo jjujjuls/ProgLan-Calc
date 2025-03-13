@@ -2,7 +2,7 @@
 #
 #EOF (end-of-file) token is used to indicate that
 #there is no more input left for lexical analysis
-INTEGER, MUL, DIV, EOF = 'INTEGER', 'MUL', 'DIV', 'EOF'
+INTEGER, PLUS, MINUS, MUL, DIV, EOF = 'INTEGER', 'PLUS', 'MINUS', 'MUL', 'DIV', 'EOF'
 
 class Token(object):
     def __init__(self, type, value):
@@ -73,6 +73,14 @@ class Lexer(object):
             if self.current_char.isdigit():
                 return Token(INTEGER, self.integer())
 
+            if self.current_char == '+':
+                self.advance()
+                return Token(PLUS, '+')
+            
+            if self.current_char == '-':
+                self.advance()
+                return Token(MINUS, '-')
+
             if self.current_char == '*':
                 self.advance()
                 return Token(MUL, '*')
@@ -85,6 +93,21 @@ class Lexer(object):
 
         return Token(EOF, None)
 
+    def term(self):
+        """term : factor ((MUL | DIV) factor)*"""
+        result = self.factor()
+
+        while self.current_token.type in (MUL, DIV):
+            token = self.current_token
+            if token.type == MUL:
+                self.eat(MUL)
+                result = result * self.factor()
+            elif token.type == DIV:
+                self.eat(DIV)
+                result = result / self.factor()
+
+        return result
+    
 class Interpreter(object):
     def __init__(self, lexer):
         # client string input, e.g. "3+5"
@@ -201,21 +224,26 @@ class Interpreter(object):
     #     return token.value
 
     def expr(self):
-        """expr -> INTEGER PLUS INTEGER"""
-        """Parser / Interpreter
-        expr -> INTEGER PLUS INTEGER
-        expr -> INTEGER MINUS INTEGER
-        """
-        result = self.factor()
+        """Arithmetic expression parser / interpreter.
 
-        while self.current_token.type in (MUL, DIV):
+        calc> 14 + 2 * 3 - 6 / 2
+        17
+
+        expr : term ((PLUS | MINUS) term)*
+        term : factor ((MUL | DIV) factor)*
+        factor : INTEGER
+        """
+        result = self.term()
+
+        while self.current_token.type in (PLUS, MINUS):
             token = self.current_token
-            if token.type == MUL:
-                self.eat(MUL)
-                result = result * self.factor()
-            elif token.type == DIV:
-                self.eat(DIV)
-                result = result // self.factor()
+            if token.type == PLUS:
+                self.eat(PLUS)
+                result = result * self.term()
+            elif token.type == MINUS:
+                self.eat(MINUS)
+                result = result // self.term()
+                
         return result
         # set current token to the first token taken from the input
         # self.current_token = self.get_next_token()
